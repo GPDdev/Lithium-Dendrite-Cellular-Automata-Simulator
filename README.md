@@ -1,2 +1,203 @@
-# Lithium-Dendrite-Cellular-Automata-Simulator
-A cellular automata simulation of lithium dendrite growth in lithium metal batteries, with morphology visualization, GIF animation, and growth metrics export.
+# Lithium Dendrite Cellular Automata Simulation
+
+基于元胞自动机（Cellular Automata, CA）的锂金属电池枝晶生长模拟程序。该项目来源于普通化学课程论文《基于人工智能的锂金属电池锂枝晶生长分析与预测——结合机器学习与多尺度模拟》，用于将论文中关于过电位、离子传输、SEI 膜不均匀性和界面优先生长的物理图像转化为可视化仿真。
+
+本项目不是严格的电化学有限元/相场求解器，而是一个面向课程展示和形貌数据生成的简化概率模型。程序通过二维格点模拟金属锂在负极表面的沉积过程，并输出枝晶形貌、动态 GIF、关键阶段图和生长指标数据。
+
+## 项目简介
+
+锂金属电池具有很高的理论比容量，是高能量密度储能体系的重要候选。但在充电沉积过程中，锂离子可能在局部电流密度较高、SEI 膜不均匀或表面粗糙的位置优先生长，逐渐形成苔藓状或针状枝晶。枝晶会消耗活性锂和电解液，降低库伦效率，严重时可能刺穿隔膜并引发短路风险。
+
+本程序使用元胞自动机方法对这一过程进行简化建模：
+
+- 使用二维网格表示电极/电解液区域；
+- `0` 表示电解液或未沉积区域；
+- `1` 表示已经沉积的金属锂；
+- 每一步只允许与已有锂相邻的界面格点发生沉积；
+- 每个候选格点的沉积概率由过电位、扩散能力、SEI 均匀性、尖端效应、邻域支撑和随机扰动共同决定；
+- 最终得到具有枝晶特征的非均匀生长形貌。
+
+## 功能特点
+
+- 二维锂枝晶生长元胞自动机模拟
+- 可调节过电位、扩散系数、SEI 均匀性、各向异性和噪声强度
+- 自动记录沉积单元数、最大高度、平均高度、粗糙度、活性尖端数和覆盖率
+- 自动导出 CSV 数据、最终形貌图、生长指标曲线、关键阶段图和动态 GIF
+- 适合作为课程论文配套仿真、参数敏感性分析和机器学习形貌数据生成的基础代码
+
+## 项目结构
+
+```text
+.
+├── lithium_dendrite.py              # 主程序：CA 模型、仿真运行与结果导出
+├── README.md                        # 项目说明文档
+└── lithium_dendrite_outputs/        # 运行后自动生成的输出目录
+    ├── dendrite_growth_data.csv     # 每一步的生长指标数据
+    ├── dendrite_final.png           # 最终枝晶形貌图
+    ├── growth_metrics.png           # 生长指标随时间变化曲线
+    ├── dendrite_growth.gif          # 枝晶生长过程动画
+    ├── growth_stages.png            # 关键阶段形貌图
+    └── summary.txt                  # 仿真结果摘要
+```
+
+## 环境依赖
+
+建议使用 Python 3.9 或更高版本。
+
+```bash
+pip install numpy pandas matplotlib pillow
+```
+
+其中 `pillow` 用于保存 GIF 动画。
+
+也可以创建 `requirements.txt`：
+
+```text
+numpy
+pandas
+matplotlib
+pillow
+```
+
+然后运行：
+
+```bash
+pip install -r requirements.txt
+```
+
+## 快速开始
+
+克隆或下载本仓库后，在项目根目录运行：
+
+```bash
+python lithium_dendrite.py
+```
+
+运行完成后，程序会在 `lithium_dendrite_outputs/` 文件夹中生成结果文件，并在终端输出文件路径和末尾几行生长数据。
+
+## 基本使用方式
+
+可以直接修改 `main()` 函数中的参数：
+
+```python
+model = LithiumDendriteCA(
+    width=120,
+    height=120,
+    steps=180,
+    eta=0.64,
+    D=0.26,
+    sei_uniformity=0.70,
+    anisotropy=0.40,
+    noise=0.08,
+    seed=42,
+)
+```
+
+也可以将模型作为模块导入，用于自定义参数扫描：
+
+```python
+from lithium_dendrite import LithiumDendriteCA, save_outputs
+
+model = LithiumDendriteCA(
+    width=160,
+    height=160,
+    steps=250,
+    eta=0.70,
+    D=0.25,
+    sei_uniformity=0.65,
+    anisotropy=0.45,
+    noise=0.08,
+    seed=2026,
+)
+
+df = model.run()
+paths = save_outputs(df, model.frames, outdir="outputs_eta_070")
+print(df.tail())
+```
+
+## 主要参数说明
+
+| 参数 | 默认值 | 含义 |
+|---|---:|---|
+| `width` | `120` | 模拟区域横向格点数 |
+| `height` | `120` | 模拟区域纵向格点数 |
+| `steps` | `180` | 元胞自动机演化步数 |
+| `eta` | `0.62` | 无量纲过电位参数，值越大，沉积驱动力越强 |
+| `D` | `0.28` | 无量纲扩散/平滑参数，值越大，生长更容易被扩散效应平滑 |
+| `sei_uniformity` | `0.72` | SEI 膜均匀性，值越低表示界面热点越明显 |
+| `anisotropy` | `0.35` | 各向异性或尖端优先生长强度 |
+| `noise` | `0.08` | 随机扰动强度 |
+| `seed` | `42` | 随机种子，用于复现实验结果 |
+
+## 模型规则简述
+
+程序首先在底部初始化一层金属锂基底，并加入少量初始表面微扰，用于模拟粗糙电极或缺陷位点。每一步演化时，程序会寻找所有与已有金属锂相邻的电解液格点作为候选沉积位置。
+
+对每个候选格点，程序计算一个局部沉积概率。该概率综合考虑以下因素：
+
+1. **过电位驱动**：`eta` 越高，锂离子还原沉积倾向越强；
+2. **邻域支撑**：周围已有金属锂越多，越容易继续沉积；
+3. **尖端效应**：局部凸起位置更容易获得较大的等效电流密度；
+4. **扩散平滑**：`D` 越高，局部生长差异越容易被削弱；
+5. **SEI 不均匀性**：`sei_uniformity` 越低，界面热点越强，沉积越不均匀；
+6. **随机噪声**：用于模拟实验中的界面扰动和局部不确定性。
+
+在代码中，局部电流密度的代理量 `j_proxy` 被映射为沉积概率：
+
+```python
+p = 0.02 + 0.42 * tanh(1.35 * j_proxy)
+```
+
+随后，程序按概率从候选格点中选择若干位置转化为金属锂，从而形成逐步向电解液方向推进的枝晶结构。
+
+## 输出数据说明
+
+`dendrite_growth_data.csv` 中包含以下指标：
+
+| 字段 | 含义 |
+|---|---|
+| `step` | 演化步数 |
+| `deposited_cells` | 除初始基底外的沉积格点数量 |
+| `max_height` | 当前枝晶最大高度 |
+| `mean_height` | 各列沉积高度的平均值 |
+| `roughness` | 高度标准差，用于表征表面粗糙度 |
+| `active_tips` | 活性尖端数量 |
+| `coverage_ratio` | 发生沉积的横向覆盖比例 |
+
+## 结果展示
+
+运行程序后，可在 `lithium_dendrite_outputs/` 中查看模拟结果。若将输出文件一并提交到 GitHub，可以在 README 中加入以下图片展示：
+
+```markdown
+![Final morphology](lithium_dendrite_outputs/dendrite_final.png)
+![Growth metrics](lithium_dendrite_outputs/growth_metrics.png)
+![Growth stages](lithium_dendrite_outputs/growth_stages.png)
+![Growth animation](lithium_dendrite_outputs/dendrite_growth.gif)
+```
+
+## 与论文内容的对应关系
+
+本程序对应论文中“数值模拟生成形貌数据”和“基于物理机理解释枝晶生长”的部分。论文从热力学驱动力、离子传输、界面反应动力学和 SEI 膜不均匀性等角度讨论锂枝晶的形成机制；程序则将这些因素转化为可调参数和概率生长规则，用于生成枝晶形貌及其随时间演化的统计指标。
+
+论文中进一步讨论了 CNN、CNN-LSTM 和机器学习回归模型在枝晶形貌识别、电化学时间序列预测和电解质设计中的应用。本仓库当前主要实现了形貌仿真与数据导出，可作为后续 AI 模型训练数据生成的基础。
+
+## 可扩展方向
+
+- 引入显式锂离子浓度场，使用 Fick 扩散方程或 Nernst-Planck 方程更新浓度分布；
+- 将 Butler-Volmer 界面动力学与局部沉积概率更严格地耦合；
+- 增加参数扫描脚本，比较不同 `eta`、`D`、`sei_uniformity` 下的枝晶形貌差异；
+- 将输出图像用于 CNN 形貌分类或分形维数预测；
+- 将时间序列指标输入 LSTM/GRU 模型，实现枝晶风险预测；
+- 根据实验或文献数据校准参数，使模型更接近真实电池体系。
+
+## 注意事项
+
+本项目主要用于课程作业展示、物理图像理解和简化仿真练习。模型中的参数为无量纲或归一化参数，不能直接等同于真实电池中的物理量。若用于科研或工程分析，需要进一步引入真实材料参数、边界条件、实验验证和更严格的电化学模型。
+
+## 作者
+
+何嘉乐，同济大学
+
+## License
+
+本项目目前作为课程作业与学习交流使用。若需要正式开源，建议在仓库中补充 MIT License 或其他合适的开源许可证。
